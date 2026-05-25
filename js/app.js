@@ -141,6 +141,7 @@
     });
   }
 
+  /** 復習モード専用 */
   function shuffle(arr) {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -148,6 +149,16 @@
       [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
+  }
+
+  /** 一覧の末尾から先頭へ（降順） */
+  function filterWordsInListDesc(predicate) {
+    const out = [];
+    for (let i = words.length - 1; i >= 0; i--) {
+      const w = words[i];
+      if (predicate(w)) out.push(w);
+    }
+    return out;
   }
 
   function findWord(word) {
@@ -375,32 +386,31 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
   }
 
-  /** チェック2: 最重要 — ノルマ復習に毎日出現（単語リスト順） */
+  /** チェック2: 最重要 — 今日のノルマ（一覧降順） */
   function getCheck2DailyReviewWords() {
-    return words.filter((w) => w.checks === MAX_CHECKS);
+    return filterWordsInListDesc((w) => w.checks === MAX_CHECKS);
   }
 
-  /** チェック1: 優先 — 前の学習日に付けた分が翌日ノルマの復習に出る */
+  /** チェック1: 重要 — 前学習日の繰り越し（一覧降順） */
   function getCarryOverReviewWords() {
     const prev = currentCycle() - 1;
     if (prev < 1) return [];
-    return words.filter(
+    return filterWordsInListDesc(
       (w) => w.lastCheckDay === prev && w.checks === 1
     );
   }
 
-  /** チェック0: 保留（通常）— 新規ノルマ候補（lastReviewedDay は見ない） */
+  /** チェック0: 新規ノルマ候補（一覧降順・lastReviewedDay は見ない） */
   function getNewWordsForCycle(limit, excluded) {
-    const candidates = words.filter((w) => {
+    return filterWordsInListDesc((w) => {
       if (excluded.has(w.word)) return false;
       return w.checks === 0;
-    });
-    return candidates.slice(0, limit);
+    }).slice(0, limit);
   }
 
   function buildMainQueue() {
-    const check2Daily = getCheck2DailyReviewWords();
     const carry = getCarryOverReviewWords();
+    const check2Daily = getCheck2DailyReviewWords();
     const seen = new Set();
     const queue = [];
 
@@ -413,19 +423,22 @@
       });
     };
 
-    addWords(check2Daily);
+    // 1. 前日分（重要・チェック1）→ 2. 今日の最重要 → 3. 今日の新規ノルマ
     addWords(carry);
+    addWords(check2Daily);
     const fresh = getNewWordsForCycle(settings.dailyGoal, seen);
     addWords(fresh);
 
     if (queue.length === 0 && words.length > 0) {
-      addWords(words.filter((w) => w.checks === 0));
+      addWords(filterWordsInListDesc((w) => w.checks === 0));
     }
     if (queue.length === 0 && words.length > 0) {
-      addWords(words.filter((w) => w.checks === 1));
+      addWords(filterWordsInListDesc((w) => w.checks === 1));
     }
     if (queue.length === 0 && words.length > 0) {
-      addWords(words.slice(0, settings.dailyGoal));
+      addWords(
+        filterWordsInListDesc(() => true).slice(0, settings.dailyGoal)
+      );
     }
 
     return {
@@ -436,9 +449,9 @@
     };
   }
 
-  /** 「もう一度」用: チェック2のみ（単語リスト順） */
+  /** 「もう一度」用: チェック2のみ（一覧降順） */
   function buildCheck2Queue() {
-    return words.filter((w) => w.checks === MAX_CHECKS).map((w) => w.word);
+    return getCheck2DailyReviewWords().map((w) => w.word);
   }
 
   /** 次の日へ進むとき、復習機会の終わったチェック1を自動で0へ */
@@ -626,7 +639,7 @@
       els.startDesc.textContent =
         queue.length === 0
           ? "学習できる単語がありません。一覧から単語を追加してください。"
-          : `チェック2 ${check2Count} + 優先(チェック1) ${reviewCount} + 新規(チェック0) ${newCount} 語（計 ${queue.length} 語）`;
+          : `前日の重要 ${reviewCount} → 最重要 ${check2Count} → 新規 ${newCount} 語（計 ${queue.length} 語・一覧の下から順）`;
       els.btnStartMain.classList.remove("hidden");
       els.btnStartMain.textContent = "今日の分を開始する";
       els.btnStartMain.disabled = queue.length === 0;
@@ -710,9 +723,9 @@
   function renderResultPanel() {
     renderStatsList(els.resultStats, [
       { label: "学習した単語", value: `${dailyState.mainQueue.length} 語` },
-      { label: "うちチェック2", value: `${dailyState.mainCheck2Count} 語` },
-      { label: "うち優先(チェック1)", value: `${dailyState.mainReviewCount} 語` },
-      { label: "うち新規(チェック0)", value: `${dailyState.mainNewCount} 語` },
+      { label: "うち前日の重要", value: `${dailyState.mainReviewCount} 語` },
+      { label: "うち最重要", value: `${dailyState.mainCheck2Count} 語` },
+      { label: "うち新規", value: `${dailyState.mainNewCount} 語` },
     ]);
 
     els.btnResultCheck2.classList.add("hidden");
