@@ -151,16 +151,6 @@
     return a;
   }
 
-  /** 一覧の先頭から末尾へ（昇順） */
-  function filterWordsInListAsc(predicate) {
-    const out = [];
-    for (let i = 0; i < words.length; i++) {
-      const w = words[i];
-      if (predicate(w)) out.push(w);
-    }
-    return out;
-  }
-
   function findWord(word) {
     return words.find((w) => w.word === word);
   }
@@ -386,72 +376,31 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
   }
 
-  /** チェック2: 最重要 — 今日のノルマ（一覧先頭から） */
   function getCheck2DailyReviewWords() {
-    return filterWordsInListAsc((w) => w.checks === MAX_CHECKS);
+    return words.filter((w) => w.checks === MAX_CHECKS);
   }
 
-  /** チェック1: 重要 — 前学習日の繰り越し（一覧先頭から） */
-  function getCarryOverReviewWords() {
-    const prev = currentCycle() - 1;
-    if (prev < 1) return [];
-    return filterWordsInListAsc(
-      (w) => w.lastCheckDay === prev && w.checks === 1
-    );
-  }
-
-  /** チェック0: 新規ノルマ候補（一覧先頭から・lastReviewedDay は見ない） */
-  function getNewWordsForCycle(limit, excluded) {
-    return filterWordsInListAsc((w) => {
-      if (excluded.has(w.word)) return false;
-      return w.checks === 0;
-    }).slice(0, limit);
+  /** 学習日 N → 一覧の (N-1)×ノルマ 番目から、ノルマ数ぶん（follow から順） */
+  function getDailyQuotaWords() {
+    const goal = settings.dailyGoal;
+    const start = (currentCycle() - 1) * goal;
+    return words.slice(start, start + goal);
   }
 
   function buildMainQueue() {
-    const carry = getCarryOverReviewWords();
-    const check2Daily = getCheck2DailyReviewWords();
-    const seen = new Set();
-    const queue = [];
-
-    const addWords = (list) => {
-      list.forEach((w) => {
-        if (!seen.has(w.word)) {
-          seen.add(w.word);
-          queue.push(w.word);
-        }
-      });
-    };
-
-    // 1. 前日分（重要・チェック1）→ 2. 今日の最重要 → 3. 今日の新規ノルマ
-    addWords(carry);
-    addWords(check2Daily);
-    const fresh = getNewWordsForCycle(settings.dailyGoal, seen);
-    addWords(fresh);
-
-    if (queue.length === 0 && words.length > 0) {
-      addWords(filterWordsInListAsc((w) => w.checks === 0));
-    }
-    if (queue.length === 0 && words.length > 0) {
-      addWords(filterWordsInListAsc((w) => w.checks === 1));
-    }
-    if (queue.length === 0 && words.length > 0) {
-      addWords(
-        filterWordsInListAsc(() => true).slice(0, settings.dailyGoal)
-      );
-    }
-
+    const slice = getDailyQuotaWords();
+    const queue = slice.map((w) => w.word);
     return {
       queue,
-      check2Count: check2Daily.length,
-      reviewCount: carry.length,
-      newCount: fresh.length,
+      check2Count: 0,
+      reviewCount: 0,
+      newCount: queue.length,
     };
   }
 
-  /** 「もう一度」用: チェック2のみ（一覧先頭から） */
+  /** 「もう一度」用: 今日の分と同じ範囲 */
   function buildCheck2Queue() {
-    return getCheck2DailyReviewWords().map((w) => w.word);
+    return buildMainQueue().queue;
   }
 
   /** 次の日へ進むとき、復習機会の終わったチェック1を自動で0へ */
@@ -634,12 +583,19 @@
     const phase = dailyState.phase;
 
     if (phase === "idle") {
-      const { queue, check2Count, reviewCount, newCount } = buildMainQueue();
+      const { queue } = buildMainQueue();
+      const goal = settings.dailyGoal;
+      const from = (dailyState.cycle - 1) * goal + 1;
+      const to = from + queue.length - 1;
+      const first = queue[0] || "";
+      const last = queue.length > 1 ? queue[queue.length - 1] : "";
       els.startTitle.textContent = `学習日 ${dailyState.cycle} — 今日の分`;
       els.startDesc.textContent =
         queue.length === 0
-          ? "学習できる単語がありません。一覧から単語を追加してください。"
-          : `前日の重要 ${reviewCount} → 最重要 ${check2Count} → 新規 ${newCount} 語（計 ${queue.length} 語・一覧の上から順）`;
+          ? "この学習日の単語はありません（一覧の語数を超えています）。"
+          : queue.length === 1
+            ? `一覧 ${from} 語目: ${first}（1 語）`
+            : `一覧 ${from}〜${to} 語目（${queue.length} 語）: ${first} → … → ${last}`;
       els.btnStartMain.classList.remove("hidden");
       els.btnStartMain.textContent = "今日の分を開始する";
       els.btnStartMain.disabled = queue.length === 0;
@@ -723,9 +679,6 @@
   function renderResultPanel() {
     renderStatsList(els.resultStats, [
       { label: "学習した単語", value: `${dailyState.mainQueue.length} 語` },
-      { label: "うち前日の重要", value: `${dailyState.mainReviewCount} 語` },
-      { label: "うち最重要", value: `${dailyState.mainCheck2Count} 語` },
-      { label: "うち新規", value: `${dailyState.mainNewCount} 語` },
     ]);
 
     els.btnResultCheck2.classList.add("hidden");
