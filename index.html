@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英単語カード</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <h1 class="logo">Vocab</h1>
+    <nav class="nav" aria-label="画面切り替え">
+      <button type="button" class="nav-btn is-active" data-view="card" aria-current="page">カード</button>
+      <button type="button" class="nav-btn" data-view="list">一覧</button>
+    </nav>
+  </header>
+
+  <main class="main">
+    <section id="view-card" class="view view-card is-active" aria-label="単語カード">
+      <!-- モード切替 -->
+      <div class="mode-tabs" role="tablist" aria-label="学習モード">
+        <button type="button" class="mode-tab is-active" data-mode="daily" role="tab" aria-selected="true">今日の分</button>
+        <button type="button" class="mode-tab" data-mode="review" role="tab" aria-selected="false">復習モード</button>
+      </div>
+
+      <!-- 開始画面 -->
+      <div id="panel-start" class="session-panel">
+        <p class="session-title" id="start-title">今日の学習</p>
+        <p class="session-desc" id="start-desc"></p>
+        <p class="cycle-badge" id="cycle-badge">学習日 1</p>
+        <div class="session-actions">
+          <button type="button" class="btn btn-primary" id="btn-start-main">今日の分を開始する</button>
+          <button type="button" class="btn btn-primary hidden" id="btn-start-check2">チェック2の復習を開始</button>
+          <button type="button" class="btn btn-primary hidden" id="btn-restart-main">今日の分をもう一度</button>
+          <button type="button" class="btn btn-secondary hidden" id="btn-advance-day">次の日へ進む</button>
+          <button type="button" class="btn btn-primary hidden" id="btn-start-review">復習モードを開始する</button>
+        </div>
+      </div>
+
+      <!-- カード学習中 -->
+      <div id="panel-play" class="session-panel hidden">
+        <div class="card-meta">
+          <div class="card-meta-left">
+            <span class="progress" id="today-progress">0 / 0</span>
+            <span class="phase-label" id="phase-label"></span>
+          </div>
+          <div class="card-badges">
+            <div class="check-control" id="card-check-control" title="チェック（+ / − キー）">
+              <button type="button" class="check-btn" id="card-check-minus" aria-label="チェックを減らす">−</button>
+              <span class="check-value" id="card-check-value">0 / 2</span>
+              <button type="button" class="check-btn" id="card-check-plus" aria-label="チェックを増やす">+</button>
+            </div>
+            <button type="button" class="badge badge-star" id="card-star" title="明日復習（Sキー）" aria-pressed="false">☆</button>
+          </div>
+        </div>
+
+        <div class="card-area">
+          <p class="card-label" id="card-side-label">英語</p>
+          <p class="card-word" id="card-text" tabindex="0">—</p>
+        </div>
+
+        <p class="card-hint" id="card-hint">Space：切替　Enter：次へ　+ / −：チェック</p>
+
+        <div class="card-actions">
+          <button type="button" class="btn btn-secondary" id="btn-flip">もう一度見る</button>
+          <button type="button" class="btn btn-primary" id="btn-next">次へ</button>
+        </div>
+        <button type="button" class="btn btn-secondary btn-end hidden" id="btn-end-review">終了</button>
+      </div>
+
+      <!-- リザルト（今日の分 第1部完了） -->
+      <div id="panel-result" class="session-panel hidden">
+        <p class="session-title">今日の分 — 完了</p>
+        <ul class="result-stats" id="result-stats"></ul>
+        <div class="session-actions">
+          <button type="button" class="btn btn-primary" id="btn-result-check2">チェック2の復習へ</button>
+          <button type="button" class="btn btn-secondary" id="btn-result-restart-main">今日の分をもう一度</button>
+          <button type="button" class="btn btn-secondary" id="btn-result-finish">いったん終了</button>
+        </div>
+      </div>
+
+      <!-- 終了画面 -->
+      <div id="panel-end" class="session-panel hidden">
+        <p class="session-title" id="end-title">お疲れさまでした</p>
+        <p class="session-desc" id="end-desc"></p>
+        <ul class="result-stats" id="end-stats"></ul>
+        <div class="session-actions">
+          <button type="button" class="btn btn-primary hidden" id="btn-end-restart-main">今日の分をもう一度</button>
+          <button type="button" class="btn btn-secondary" id="btn-advance-day-end">次の日へ進む</button>
+          <button type="button" class="btn btn-secondary" id="btn-end-home">トップへ</button>
+        </div>
+      </div>
+
+      <p class="card-empty hidden" id="card-empty">単語がありません。一覧から追加してください。</p>
+    </section>
+
+    <section id="view-list" class="view view-list" aria-label="単語一覧" hidden>
+      <div class="list-settings">
+        <label class="setting-label">
+          <span class="setting-label-text">1日のノルマ</span>
+          <input type="number" class="input input-narrow" id="daily-goal" min="1" max="999" value="20" aria-label="1日のノルマ">
+        </label>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-daily">学習状態をリセット</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-checks">チェックをすべてリセット</button>
+      </div>
+
+      <div class="list-toolbar">
+        <input
+          type="search"
+          class="search-input"
+          id="search-input"
+          placeholder="英単語・意味で検索…"
+          autocomplete="off"
+        >
+      </div>
+
+      <form class="add-form" id="add-form">
+        <input type="text" class="input" id="input-word" placeholder="英単語" autocomplete="off" required>
+        <input type="text" class="input" id="input-meaning" placeholder="意味" autocomplete="off" required>
+        <button type="submit" class="btn btn-primary btn-sm">追加</button>
+      </form>
+      <p class="form-error hidden" id="add-error" role="alert"></p>
+
+      <ul class="word-list" id="word-list"></ul>
+      <p class="list-empty hidden" id="list-empty">単語がありません</p>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
