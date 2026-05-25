@@ -151,10 +151,10 @@
     return a;
   }
 
-  /** 一覧の末尾から先頭へ（降順） */
-  function filterWordsInListDesc(predicate) {
+  /** 一覧の先頭から末尾へ（昇順） */
+  function filterWordsInListAsc(predicate) {
     const out = [];
-    for (let i = words.length - 1; i >= 0; i--) {
+    for (let i = 0; i < words.length; i++) {
       const w = words[i];
       if (predicate(w)) out.push(w);
     }
@@ -386,23 +386,23 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
   }
 
-  /** チェック2: 最重要 — 今日のノルマ（一覧降順） */
+  /** チェック2: 最重要 — 今日のノルマ（一覧先頭から） */
   function getCheck2DailyReviewWords() {
-    return filterWordsInListDesc((w) => w.checks === MAX_CHECKS);
+    return filterWordsInListAsc((w) => w.checks === MAX_CHECKS);
   }
 
-  /** チェック1: 重要 — 前学習日の繰り越し（一覧降順） */
+  /** チェック1: 重要 — 前学習日の繰り越し（一覧先頭から） */
   function getCarryOverReviewWords() {
     const prev = currentCycle() - 1;
     if (prev < 1) return [];
-    return filterWordsInListDesc(
+    return filterWordsInListAsc(
       (w) => w.lastCheckDay === prev && w.checks === 1
     );
   }
 
-  /** チェック0: 新規ノルマ候補（一覧降順・lastReviewedDay は見ない） */
+  /** チェック0: 新規ノルマ候補（一覧先頭から・lastReviewedDay は見ない） */
   function getNewWordsForCycle(limit, excluded) {
-    return filterWordsInListDesc((w) => {
+    return filterWordsInListAsc((w) => {
       if (excluded.has(w.word)) return false;
       return w.checks === 0;
     }).slice(0, limit);
@@ -430,14 +430,14 @@
     addWords(fresh);
 
     if (queue.length === 0 && words.length > 0) {
-      addWords(filterWordsInListDesc((w) => w.checks === 0));
+      addWords(filterWordsInListAsc((w) => w.checks === 0));
     }
     if (queue.length === 0 && words.length > 0) {
-      addWords(filterWordsInListDesc((w) => w.checks === 1));
+      addWords(filterWordsInListAsc((w) => w.checks === 1));
     }
     if (queue.length === 0 && words.length > 0) {
       addWords(
-        filterWordsInListDesc(() => true).slice(0, settings.dailyGoal)
+        filterWordsInListAsc(() => true).slice(0, settings.dailyGoal)
       );
     }
 
@@ -449,7 +449,7 @@
     };
   }
 
-  /** 「もう一度」用: チェック2のみ（一覧降順） */
+  /** 「もう一度」用: チェック2のみ（一覧先頭から） */
   function buildCheck2Queue() {
     return getCheck2DailyReviewWords().map((w) => w.word);
   }
@@ -639,7 +639,7 @@
       els.startDesc.textContent =
         queue.length === 0
           ? "学習できる単語がありません。一覧から単語を追加してください。"
-          : `前日の重要 ${reviewCount} → 最重要 ${check2Count} → 新規 ${newCount} 語（計 ${queue.length} 語・一覧の下から順）`;
+          : `前日の重要 ${reviewCount} → 最重要 ${check2Count} → 新規 ${newCount} 語（計 ${queue.length} 語・一覧の上から順）`;
       els.btnStartMain.classList.remove("hidden");
       els.btnStartMain.textContent = "今日の分を開始する";
       els.btnStartMain.disabled = queue.length === 0;
