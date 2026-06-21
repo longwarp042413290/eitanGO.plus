@@ -388,15 +388,19 @@
   }
 
   function buildMainQueue() {
-    const slice = getDailyQuotaWords();
-    const queue = slice.map((w) => w.word);
-    return {
-      queue,
-      check2Count: 0,
-      reviewCount: 0,
-      newCount: queue.length,
-    };
-  }
+  const slice = getDailyQuotaWords();
+
+  const queue = shuffle(
+    slice.map((w) => w.word)
+  );
+
+  return {
+    queue,
+    check2Count: 0,
+    reviewCount: 0,
+    newCount: queue.length,
+  };
+}
 
   /** 「もう一度」用: 今日の分と同じ範囲 */
   function buildCheck2Queue() {
